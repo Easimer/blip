@@ -43,7 +43,7 @@ var nextFrame =
     };
 var range = 2200;
 var log_range = Math.log(range * 1.5);
-var default_delay = 1000;
+var default_delay = 200;
 var absolute_mindelay = 10;
 var mindelay = default_delay;
 var lastBotch = 0;
@@ -57,7 +57,7 @@ var updateMinDelay = function() {
   // the same, *or* please also change the code to ping your own servers,
   // and then it's your problem.  Thanks!
   //    -- apenwarr, 2013/04/26
-  $.getJSON('https://gfblip.appspot.com/mindelay?callback=?', function(data) {
+  $.getJSON('https://srv1.easimer.net/', function(data) {
     var newdelay = parseInt(data);
     if (newdelay >= absolute_mindelay) {
       mindelay = newdelay;
@@ -71,7 +71,7 @@ var updateMinDelay = function() {
     setTimeout(updateMinDelay, 60000);
   });
 };
-updateMinDelay();
+// updateMinDelay();
 
 var BlipCanvas = function(canvas, width) {
   this.canvas = canvas;
@@ -259,7 +259,7 @@ c1.drawYAxis();
 // and find a different server to ping.
 //     -- apenwarr, 2013/04/26
 var addGstatic = function() {
-  addBlip('rgba(0,255,0,0.8)', 'http://gstatic.com/generate_204', 0);
+  addBlip('rgba(0,255,0,0.8)', 'https://gstatic.com/generate_204', 0);
 };
 
 // This also ends up using Google resources, so see above.  But in this case,
@@ -267,94 +267,6 @@ var addGstatic = function() {
 // your DNS server is flakey.
 // TODO(apenwarr): figure out whether this is too impactful or not.
 addBlip('rgba(0,0,0,1.0)', null, 5);
-
-// Pick an Internet site with reasonably high latency (at least, higher than
-// the usually-very-low-latency gstatic.com) to add contrast to the graph.
-//
-// Nobody really cares about apenwarr.ca, which is just hosted on a cheap
-// VPS somewhere.  If you overload it, I guess I'll be sort of impressed
-// that you like my program.  So, you know, whatever.
-//     -- apenwarr, 2013/04/26
-$.ajax({
-  'url': 'https://mlab-ns.appspot.com/ndt?policy=all',
-  crossDomain: true,
-}).success(function(ndt) {
-  // We want the selected hostname to be reasonably stable across page reloads
-  // from a single location, even on separate devices.  To help with this,
-  // choose only from the first server in the first city in each country.
-  // The latency between countries is hopefully different enough that there
-  // should be little jitter.
-  //
-  // TODO(apenwarr): think about reducing the country list to 2 per region?
-  //   Africa          Johannesburg-ZA, Nairobi-KE
-  //   Australia       Auckland-NZ
-  //   Asia            Bangkok-TH, Taipei-TW
-  //   Western EU      Dublin-IE, Stockholm-SE
-  //   Eastern EU      Belgrade-RS
-  //   NA              Seattle_WA-US, New York_NY-US
-  //   SA              Bogota-CO
-  //
-  var hosts = [];
-  for (var i in ndt) {
-    hosts.push([ndt[i].country, ndt[i].city, ndt[i].url]);
-  }
-  hosts.sort();
-  var one_per_country = {};
-  for (var i in hosts) {
-    var country = hosts[i][0];
-    var city = hosts[i][1];
-    var url = hosts[i][2];
-    if (!one_per_country[country]) {
-      one_per_country[country] = {
-        where: city + ', ' + country,
-        url: url,
-        rttList: []
-      };
-    }
-  }
-
-  var roundsDone = 0;
-  var outstanding = 0;
-  var doRound = function() {
-    for (var ci in one_per_country) {
-      (function() {
-        var v = one_per_country[ci];
-        var startTime = now();
-        outstanding++;
-        $.ajax({
-          'url': v.url,
-          crossDomain: false,
-          timeout: range
-        }).complete(function() {
-          v.rttList.push(now() - startTime);
-          outstanding--;
-          console.log('outstanding', outstanding);
-          if (!outstanding) {
-            roundsDone++;
-            if (roundsDone < 3) {
-              doRound();
-            } else {
-              console.log(one_per_country);
-              var results = getValues(one_per_country);
-              results.sort(function(a, b) {
-                return (Math.min.apply(Math, a.rttList) -
-                        Math.min.apply(Math, b.rttList));
-              });
-              console.log(results);
-              // Pick an entry at least one city away
-              var best = results[1];
-              dnsName = best.url;
-              $('#internetlegend').text('o ' + best.where);
-              addBlip('rgba(0,0,255,0.8)', best.url, 5);
-            }
-          }
-        });
-      })();
-    }
-  };
-  doRound();
-});
-
 
 var tryFastSites = [
   '192.168.0.1',
@@ -399,7 +311,7 @@ function doneFastSite(reason, host, url, start_time) {
 
 function nextFastSite() {
   var host = tryFastSites[curFastSite];
-  var url = 'http://' + host + ':8999/generate_204';
+  var url = 'https://' + host + ':8999/generate_204';
   var start_time = now();
   $.ajax({
     'url': url,
